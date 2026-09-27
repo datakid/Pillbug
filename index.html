@@ -30,6 +30,8 @@
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
   <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol>
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></symbol>
+  <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-7h16v7h-3"/><rect x="7" y="14" width="10" height="7" rx="1"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h7"/></symbol>
   <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
   <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V5m0 0L8 9m4-4 4 4M5 20h14"/></symbol>
 </svg>
@@ -41,6 +43,7 @@
       <a href="#/inventory" data-v="inventory"><svg class="ic"><use href="#i-box"/></svg><span>Inventory</span></a>
       <a href="#/receive" data-v="receive"><svg class="ic"><use href="#i-in"/></svg><span>Receive</span></a>
       <a href="#/dispense" data-v="dispense"><svg class="ic"><use href="#i-out"/></svg><span>Dispense</span></a>
+      <a href="#/orders" data-v="orders"><svg class="ic"><use href="#i-doc"/></svg><span>Orders</span><b id="po-badge" class="badge" style="background:var(--info-soft);color:var(--info)" hidden></b></a>
       <a href="#/history" data-v="history"><svg class="ic"><use href="#i-clock"/></svg><span>Ledger</span></a>
       <a href="#/expiry" data-v="expiry"><svg class="ic"><use href="#i-alert"/></svg><span>Expiry</span><b id="exp-badge" class="badge" hidden></b></a>
       <a href="#/settings" data-v="settings"><svg class="ic"><use href="#i-gear"/></svg><span>Settings</span></a>
@@ -55,5 +58,6 @@
 <script src="js/fields.js"></script>
 <script src="js/app.js"></script>
 <script src="js/importer.js"></script>
+<script src="js/print.js"></script>
 </body>
 </html>

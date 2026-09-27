@@ -152,7 +152,8 @@ dialog::backdrop{background:rgba(20,20,19,.32);backdrop-filter:blur(3px);-webkit
 .sidebar{position:fixed;top:auto;bottom:0;left:0;right:0;height:auto;flex-direction:row;padding:6px;gap:0;border-right:0;border-top:1px solid var(--line);background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);z-index:50}
 .brand,.theme-toggle{display:none}
 .nav{flex-direction:row;flex:1;justify-content:space-around}
-.nav a{flex-direction:column;gap:2px;padding:6px 4px;font-size:10.5px;position:relative}
+.nav a{flex:1;min-width:0;flex-direction:column;gap:2px;padding:6px 1px;font-size:9.5px;position:relative;letter-spacing:-.01em}
+.nav a span{max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .nav a.active{box-shadow:none;background:transparent}
 .badge{position:absolute;top:0;right:4px;margin:0;padding:0 5px}
 main{padding:20px 14px 100px}

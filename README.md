@@ -23,8 +23,14 @@ A local-first pharmacy inventory demo built with vanilla HTML, CSS and JavaScrip
 - Downloadable CSV import template
 - Export an Excel workbook with three sheets (Products, Batches, Ledger), a JSON backup, CSV files, and a purchase list of items to reorder
 
+## Printing & purchase orders (js/print.js)
+- Receipts: 80 mm thermal format with pharmacy header, lot numbers, returns and a barcode of the reference. You can print one right after dispensing or from the Ledger
+- Labels: A4 3×8 sheet, Letter 3×10 sheet, or 50×25 mm and 38×25 mm roll labels. Each shows name, strength, generic name, lot, expiry, optional price and an optional barcode (SKU, or lot if there is no SKU). Print them from a batch, a receipt in the Ledger, or the recent receipts list
+- Purchase orders: "From reorder list" creates draft orders for low products, one per last supplier, and skips products already on an open order. Drafts can be edited (lines, quantities, costs, supplier, expected date, note). An order goes from draft to sent to part received or received, or can be cancelled. Printing gives an A4 purchase order. When a delivery arrives you enter lot and expiry per line and the stock is added to inventory
+- Pharmacy details (name, phone, address, receipt footer) are set in Settings
+
 ## Routes
-`#/dashboard`, `#/inventory`, `#/receive`, `#/dispense`, `#/history`, `#/expiry`, `#/settings`
+`#/dashboard`, `#/inventory`, `#/receive`, `#/dispense`, `#/orders`, `#/history`, `#/expiry`, `#/settings`
 
 ## Data
 Everything is stored in `localStorage` under the key `pillbug.v1` as `{version, drugs[], batches[], tx[], settings}`.
