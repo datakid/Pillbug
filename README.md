@@ -31,8 +31,3 @@ Everything is stored in `localStorage` under the key `pillbug.v1` as `{version, 
 - drug: id, name, generic, strength, form, category, sku, unit, price, reorder, notes
 - batch: id, drugId, lot, expiry, qty, cost, supplier, received
 - tx: id, type (in/out/return/adjust/dispose), date, drugId, drugName, batchId, lot, qty, unitCost, unitPrice, ref, note, reversed
-
-## Not implemented yet / next steps
-- Printable labels and receipts
-- Purchase-order generation from the reorder list
-- Multiple users or branches (would need a real backend)
