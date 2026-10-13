@@ -73,12 +73,12 @@ const csvCell=v=>{const s=String(v??'');return/[",\n;]/.test(s)?`"${s.replace(/"
 const csv=rows=>rows.map(r=>r.map(csvCell).join(',')).join('\n');
 
 const closeBtn=`<button type="button" class="btn ghost icon" data-act="close" aria-label="Close">${ic('x')}</button>`;
-function openDrawer(html){const d=$('#drawer');d.innerHTML=html;if(!d.open)d.showModal();$('input,select',d)?.focus()}
+function openDrawer(html){popClose();const d=$('#drawer');d.innerHTML=html;if(!d.open)d.showModal();$('input:not([type=hidden]),.sel-btn',d)?.focus()}
 function closeAll(){$$('dialog[open]').forEach(d=>d.close())}
 let pending=null;
-function openModal(html){const m=$('#modal');m.innerHTML=html;if(!m.open)m.showModal()}
+function openModal(html){popClose();const m=$('#modal');m.innerHTML=html;if(!m.open)m.showModal()}
 function confirmBox(title,msg,ok,fn,danger=true){pending=fn;openModal(`<div class="panel"><div class="card-pad"><h3 style="margin:0 0 6px;font:500 21px var(--serif)">${esc(title)}</h3><p class="t2" style="margin:0">${msg}</p></div><div class="panel-foot"><button class="btn" data-act="modal-close">Cancel</button><button class="btn ${danger?'danger':'primary'}" data-act="modal-ok">${esc(ok)}</button></div></div>`)}
-function fld(label,name,val,o={}){const a=o.attrs||'';const inner=o.options?`<select class="input" name="${name}" ${a}>${o.options.map(x=>`<option ${String(x)===String(val)?'selected':''}>${esc(x)}</option>`).join('')}</select>`:o.area?`<textarea class="input" name="${name}" ${a}>${esc(val)}</textarea>`:`<input class="input" name="${name}" type="${o.type||'text'}" value="${esc(val)}" ${a}>`;return`<div class="field ${o.full?'full':''}"><label>${label}</label>${inner}${o.hint?`<span class="hint">${o.hint}</span>`:''}</div>`}
+function fld(label,name,val,o={}){const a=o.attrs||'';const inner=o.options?selectBox(name,o.options,val,{attrs:a}):o.area?`<textarea class="input" name="${name}" ${a}>${esc(val)}</textarea>`:`<input class="input" name="${name}" type="${o.type||'text'}" value="${esc(val)}" ${o.suggest?`data-suggest="${esc(JSON.stringify(o.suggest))}" autocomplete="off"`:''} ${a}>`;return`<div class="field ${o.full?'full':''}"><label>${label}</label>${inner}${o.hint?`<span class="hint">${o.hint}</span>`:''}</div>`}
 const head=(t,p,actions='')=>`<div class="page-head"><div><h1>${t}</h1><p>${p}</p></div><div class="row">${actions}</div></div>`;
 
 const ui={inv:{q:'',cat:'',st:'',sort:'name',dir:1},disp:{q:'',cart:[],ref:'',note:''},led:{type:'',q:'',from:'',to:''},exp:{tab:'soon'},recvDrug:''};
@@ -131,7 +131,7 @@ function inventory(){
   return head('Inventory',`${S.drugs.length} products · ${fnum(S.batches.reduce((s,b)=>s+Math.max(0,b.qty),0))} units on hand`,`<button class="btn" data-act="imp-pick">${ic('upload')}<span class="hide-sm">Import</span></button><button class="btn" data-act="export-xlsx">${ic('download')}<span class="hide-sm">Export</span></button><button class="btn primary" data-act="new-drug">${ic('plus')}New product</button>`)+`
   <div class="row" style="margin-bottom:14px">
     <label class="search">${ic('search')}<input class="input" id="inv-q" type="search" placeholder="Search name, generic, SKU, lot…" value="${esc(ui.inv.q)}" data-search></label>
-    <select class="input" id="inv-cat" style="width:auto"><option value="">All categories</option>${cats.map(c=>`<option ${c===ui.inv.cat?'selected':''}>${esc(c)}</option>`).join('')}</select>
+    ${selectBox('',[['','All categories'],...cats],ui.inv.cat,{id:'inv-cat',cls:'sel-auto',label:'Category'})}
     <div class="tabs">${[['','All'],['low','Low'],['out','Out'],['exp','Expiring']].map(([k,l])=>`<button data-act="inv-st" data-k="${k}" class="${ui.inv.st===k?'on':''}">${l}</button>`).join('')}</div>
   </div>
   <div class="card table-wrap" id="inv-table"></div>`;
@@ -174,7 +174,7 @@ function drugForm(id,from='',pre=''){
     ${fld('Generic name','generic',d.generic,{attrs:'maxlength="80"'})}
     ${fld('Strength','strength',d.strength,{attrs:'placeholder="500 mg"'})}
     ${fld('Dosage form','form',d.form,{options:FORMS})}
-    ${fld('Category','category',d.category,{attrs:'list="cat-list" placeholder="Analgesic"'})}<datalist id="cat-list">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+    ${fld('Category','category',d.category,{suggest:cats,attrs:'placeholder="Analgesic"'})}
     ${fld('SKU / barcode','sku',d.sku,{attrs:'autocomplete="off"'})}
     ${fld('Dispensing unit','unit',d.unit,{attrs:'placeholder="unit, pack, bottle"'})}
     ${fld('Sell price per unit *','price',d.price,{type:'number',attrs:'required min="0" step="0.01"'})}
@@ -198,7 +198,7 @@ function receive(){
         ${dateField('Expiry date *','expiry','',{mode:'expiry',min:today(),chips:[['+6 mo','+6m'],['+1 yr','+1y'],['+2 yr','+2y'],['+3 yr','+3y']],hint:'Type 12/27 for end of month'})}
         ${fld('Quantity *','qty','',{type:'number',attrs:'required min="1" step="1"'})}
         ${fld('Unit cost','cost',lb?lb.cost:'',{type:'number',attrs:'min="0" step="0.01" id="recv-cost"'})}
-        ${fld('Supplier','supplier',lb?lb.supplier:'',{attrs:'list="sup-list" id="recv-sup"'})}<datalist id="sup-list">${sups.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
+        ${fld('Supplier','supplier',lb?lb.supplier:'',{suggest:sups,attrs:'id="recv-sup"'})}
         ${dateField('Received on','received',today(),{max:today(),chips:[['Today','t'],['Yesterday','y']]})}
         ${fld('PO / invoice ref','ref','',{attrs:'autocomplete="off"'})}
         ${fld('New sell price','price','',{type:'number',attrs:`min="0" step="0.01" id="recv-price" placeholder="${ui.recvDrug?esc(drug(ui.recvDrug)?.price):'Keep current'}"`,hint:'Leave empty to keep the current price.'})}
@@ -288,7 +288,7 @@ function settings(){
     <section class="card card-pad"><h2>Preferences</h2>
       <div class="form-grid">
         <div class="field full"><label>Appearance</label><div class="tabs">${['light','dark','system'].map(t=>`<button data-act="theme" data-t="${t}" class="${S.settings.theme===t?'on':''}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div></div>
-        <div class="field"><label>Currency</label><select class="input" id="set-cur">${CURR.map(c=>`<option ${c===S.settings.currency?'selected':''}>${c}</option>`).join('')}</select></div>
+        <div class="field"><label>Currency</label>${selectBox('',CURR,S.settings.currency,{id:'set-cur',label:'Currency'})}</div>
         <div class="field"><label>Expiry warning (days)</label><input class="input" id="set-warn" type="number" min="7" max="365" value="${S.settings.warnDays}"></div>
       </div>
     </section>
@@ -408,7 +408,7 @@ const F={
 const views={dashboard,inventory,receive,dispense,history,expiry,settings};
 const after={inventory:renderInvTable,dispense:()=>{renderPick();renderCart()},history:renderLedger};
 let cur='';
-function route(){
+function route(){popClose();
   const v=(location.hash.slice(2)||'dashboard').split('?')[0];
   const view=views[v]?v:'dashboard';
   if(view!==cur)$$('#drawer[open]').forEach(d=>d.close());

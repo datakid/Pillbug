@@ -12,6 +12,7 @@ A local-first pharmacy inventory demo built with vanilla HTML, CSS and JavaScrip
 - **Settings**: Light, Dark or System theme; currency; expiry warning window; JSON backup export; import by drag-and-drop (merge or replace); reload sample data; erase all data
 
 ## Faster data entry (js/fields.js)
+- Every dropdown is themed and keyboard-driven: one floating menu layer serves selects, suggestion fields (category, supplier), the product search and the calendar. Menus flip above when there is no room below, stay inside drawers and dialogs instead of being clipped, and close on scroll-away, route change or Escape. Selects support arrows, Home/End, type-ahead, Enter and Space; a hidden native select keeps forms and change handlers unchanged
 - Custom date fields with a calendar that matches the app theme. You can also type dates directly: `t`, `y`, `+2y`, `-3d`, `+6m`, `12/27` (end of that month for expiry dates), `dec 27`, `311227`, `2027-05-03`. A hint under the field shows how your text was read
 - Quick-pick chips: +6 mo, +1 yr, +2 yr, +3 yr for expiry; Today and Yesterday for the received date
 - Product field that searches as you type (name, generic name or SKU). Use the arrow keys and Enter, scan a SKU, or pick "Create …"
