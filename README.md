@@ -38,3 +38,13 @@ Everything is stored in `localStorage` under the key `pillbug.v1` as `{version, 
 - drug: id, name, generic, strength, form, category, sku, unit, price, reorder, notes
 - batch: id, drugId, lot, expiry, qty, cost, supplier, received
 - tx: id, type (in/out/return/adjust/dispose), date, drugId, drugName, batchId, lot, qty, unitCost, unitPrice, ref, note, reversed
+
+## Reliability (v2.5)
+- One commit boundary: every click action and form submit runs inside a guard. If it throws before saving, the in-memory state is restored to the last saved snapshot and nothing changes
+- A red banner appears if the browser refuses to save (storage full) and clears on the next successful save
+- Settings → Check integrity compares each batch's stock with the sum of its ledger entries and can record reconciling adjustments
+- Backup import validates products, batches, ledger entries and purchase orders, including references between them
+- Startup is deterministic: js/boot.js runs last, after every view and handler is registered
+
+## Tests
+`npm install` then `npm test` runs tests/run.js, which loads the real scripts in index.html order inside jsdom and exercises every route, dropdown, form, importer step, purchase order and the checks above

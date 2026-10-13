@@ -58,7 +58,7 @@ function impMapStep(){
     <div class="imp-sum">${res.ok?`<span class="pill p-ok">${res.newD} new products</span><span class="pill p-info">${res.updD} matched</span><span class="pill p-ok">${res.batches} batches · ${fnum(res.units)} units</span>${res.skipped.length?`<span class="pill p-warn">${res.skipped.length} rows skipped</span>`:''}${res.expired?`<span class="pill p-bad">${res.expired} expired batches</span>`:''}`:`<span class="err-text">${esc(res.error)}</span>`}</div>
     ${res.skipped.length?`<details class="skips"><summary class="sub">Why rows are skipped</summary>${res.skipped.slice(0,30).map(s=>`<div class="sub">Row ${s[0]}: ${esc(s[1])}</div>`).join('')}</details>`:''}
   </div>
-  <footer class="panel-foot"><button class="btn ghost" data-act="imp-pick">Other file</button><span style="flex:1"></span><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="imp-run" ${res.ok&&(res.newD||res.updD)?'':'disabled'}>${ic('upload')}Import ${fnum(res.rows)} rows</button></footer></div>`);
+  <footer class="panel-foot"><button class="btn ghost" data-act="imp-pick">Other file</button><span style="flex:1"></span><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="imp-run" ${res.ok&&(res.newD||res.updD)?'':'disabled'}>${ic('upload')}Import ${fnum(res.rows)} rows</button></footer></div>`,1);
 }
 function impRun(dry){
   const m=IMP.map,data=impData(),out={ok:true,newD:0,updD:0,batches:0,units:0,expired:0,skipped:[],rows:0};

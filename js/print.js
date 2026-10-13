@@ -130,7 +130,3 @@ document.addEventListener('change',e=>{
   else if(t.dataset.store){S.settings.store={...store(),[t.dataset.store]:t.value.trim()};save();toast('Saved')}
 });
 views.orders=orders;
-const _ubase=updateBadge;
-updateBadge=function(){_ubase();const n=S.pos.filter(poOpen).length,el=$('#po-badge');el.hidden=!n;el.textContent=n};
-updateBadge();
-if(location.hash.startsWith('#/orders'))route();

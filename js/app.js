@@ -23,7 +23,7 @@ const money=n=>{if(_mfc!==S.settings.currency){try{_mf=new Intl.NumberFormat(und
 function blank(){return{version:1,drugs:[],batches:[],tx:[],pos:[],settings:{currency:'USD',warnDays:90,theme:'system'}}}
 function normalize(d){const b=blank();return{version:1,drugs:Array.isArray(d.drugs)?d.drugs:[],batches:Array.isArray(d.batches)?d.batches:[],tx:Array.isArray(d.tx)?d.tx:[],pos:Array.isArray(d.pos)?d.pos:[],settings:{...b.settings,...(d.settings||{})}}}
 function load(){try{const raw=localStorage.getItem(KEY);if(raw)return normalize(JSON.parse(raw))}catch(e){}const s=seed();localStorage.setItem(KEY,JSON.stringify(s));return s}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Storage is full — export a backup and clear old data','err')}updateBadge()}
+function save(){last=JSON.stringify(S);let ok=true;try{localStorage.setItem(KEY,last)}catch(e){ok=false;toast('Storage is full — export a backup and clear old data','err')}$('#save-warn').hidden=ok;updateBadge()}
 
 function seed(keep){
   const d=blank();if(keep)d.settings=keep;
@@ -53,7 +53,7 @@ function seed(keep){
   return d;
 }
 
-let S=load();
+let S=load(),last=JSON.stringify(S);
 const drug=id=>S.drugs.find(x=>x.id===id);
 const liveBatches=id=>S.batches.filter(b=>b.drugId===id&&b.qty>0).sort((a,b)=>a.expiry.localeCompare(b.expiry));
 const onHand=id=>liveBatches(id).reduce((s,b)=>s+b.qty,0);
@@ -68,12 +68,21 @@ function themeTabs(){return['light','dark','system'].map(t=>`<span data-act="the
 mq.addEventListener('change',applyTheme);
 
 function toast(msg,type=''){const el=document.createElement('div');el.className='toast '+type;el.textContent=msg;$('#toasts').append(el);setTimeout(()=>el.remove(),3000)}
+function guard(fn){
+  const base=last;
+  try{return fn()}
+  catch(err){
+    if(last===base)S=normalize(JSON.parse(base));
+    toast(last===base?'That action failed and nothing was changed':'That action finished but the screen could not refresh','err');
+    try{route()}catch(e){}
+  }
+}
 function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 const csvCell=v=>{const s=String(v??'');return/[",\n;]/.test(s)?`"${s.replace(/"/g,'""')}"`:s};
 const csv=rows=>rows.map(r=>r.map(csvCell).join(',')).join('\n');
 
 const closeBtn=`<button type="button" class="btn ghost icon" data-act="close" aria-label="Close">${ic('x')}</button>`;
-function openDrawer(html){popClose();const d=$('#drawer');d.innerHTML=html;if(!d.open)d.showModal();$('input:not([type=hidden]),.sel-btn',d)?.focus()}
+function openDrawer(html,keep){popClose();const d=$('#drawer'),st=keep&&d.open?$('.panel-body',d)?.scrollTop:0;d.innerHTML=html;if(!d.open)d.showModal();const pb=$('.panel-body',d);if(st&&pb)pb.scrollTop=st;if(!keep)$('input:not([type=hidden]),.sel-btn',d)?.focus()}
 function closeAll(){$$('dialog[open]').forEach(d=>d.close())}
 let pending=null;
 function openModal(html){popClose();const m=$('#modal');m.innerHTML=html;if(!m.open)m.showModal()}
@@ -293,13 +302,13 @@ function settings(){
       </div>
     </section>
     <section class="card card-pad"><h2>Backup &amp; restore <span class="sub">${kb} KB stored</span></h2>
-      <div class="row" style="margin-bottom:14px"><button class="btn primary" data-act="export-json">${ic('download')}Backup .json</button><button class="btn" data-act="export-xlsx">${ic('download')}Excel workbook</button><button class="btn" data-act="csv-inv">${ic('download')}Inventory CSV</button><button class="btn" data-act="csv-led">${ic('download')}Ledger CSV</button></div>
+      <div class="row" style="margin-bottom:14px"><button class="btn primary" data-act="export-json">${ic('download')}Backup .json</button><button class="btn" data-act="export-xlsx">${ic('download')}Excel workbook</button><button class="btn" data-act="csv-inv">${ic('download')}Inventory CSV</button><button class="btn" data-act="csv-led">${ic('download')}Ledger CSV</button><button class="btn" data-act="audit">${ic('check')}Check integrity</button></div>
       <label class="dropzone" id="dropzone">${ic('upload')}<div style="margin-top:6px"><strong>Import a file</strong></div><div class="sub">Drop a Pillbug backup (.json) or a stock list (.csv, .xlsx, .xls, .ods) — or click to browse</div><input type="file" id="import-file" accept=".json,.csv,.tsv,.txt,.xlsx,.xls,.xlsm,.ods" hidden></label>
       <p class="sub" style="margin:10px 0 0">Spreadsheets: pick the sheet, match columns, preview, then import. <a href="javascript:void 0" data-act="imp-template" style="color:var(--accent)">Download a template</a></p>
     </section>
     <section class="card card-pad"><h2>Pharmacy details <span class="sub">Printed on receipts &amp; orders</span></h2><div class="form-grid">${[['sn','Pharmacy name','name'],['sp','Phone','phone'],['sa','Address','address'],['sf','Receipt footer','footer']].map(([i,l,k])=>`<div class="field ${k==='address'||k==='footer'?'full':''}"><label>${l}</label><input class="input" id="set-${i}" data-store="${k}" value="${esc((S.settings.store||{})[k]||'')}"></div>`).join('')}</div></section>
     <section class="card card-pad"><h2>Demo data</h2><p class="t2" style="margin-top:0">Reload the sample pharmacy, or start from an empty shelf.</p><div class="row"><button class="btn" data-act="load-demo">Load sample data</button><button class="btn danger" data-act="wipe">${ic('trash')}Erase everything</button></div></section>
-    <section class="card card-pad"><h2>About</h2><p class="t2" style="margin:0">Pillbug is a local-first demo. Data is kept in <span class="mono">localStorage</span> on this device only — export a backup regularly. Shortcuts: <span class="mono">/</span> search, <span class="mono">Esc</span> close panels.</p></section>
+    <section class="card card-pad"><h2>About</h2><p class="t2" style="margin:0">Pillbug 2.5 is a local-first demo. Data is kept in <span class="mono">localStorage</span> on this device only — export a backup regularly. Shortcuts: <span class="mono">/</span> search, <span class="mono">Esc</span> close panels.</p></section>
   </div>`;
 }
 
@@ -311,7 +320,9 @@ function handleImport(file){
     let d;try{d=JSON.parse(r.result)}catch(e){return toast('That file is not valid JSON','err')}
     if(!d||!Array.isArray(d.drugs)||!Array.isArray(d.batches)||!Array.isArray(d.tx))return toast('Not a Pillbug backup','err');
     const okD=d.drugs.every(x=>x&&x.id&&x.name),okB=d.batches.every(x=>x&&x.id&&x.drugId&&x.expiry&&Number.isFinite(+x.qty));
-    if(!okD||!okB)return toast('Backup contains malformed records','err');
+    const ids=new Set([...d.drugs,...S.drugs].map(x=>x.id));
+    const okR=d.batches.every(x=>ids.has(x.drugId)),okT=d.tx.every(x=>x&&x.id&&TX[x.type]&&x.date&&Number.isFinite(+x.qty)),okP=(d.pos||[]).every(p=>p&&p.id&&p.number&&Array.isArray(p.lines));
+    if(!okD||!okB||!okR||!okT||!okP)return toast('Backup contains malformed records','err');
     importData=normalize(d);
     openModal(`<div class="panel"><div class="card-pad"><h3 style="margin:0 0 6px;font:500 21px var(--serif)">Import backup</h3><p class="t2" style="margin:0 0 12px">${esc(file.name)} contains ${d.drugs.length} products, ${d.batches.length} batches and ${d.tx.length} transactions.</p><p class="sub" style="margin:0"><b>Merge</b> adds new records and updates matching ones. <b>Replace</b> discards current data.</p></div><div class="panel-foot"><button class="btn" data-act="modal-close">Cancel</button><button class="btn" data-act="import" data-mode="merge">Merge</button><button class="btn primary" data-act="import" data-mode="replace">Replace</button></div></div>`);
   };
@@ -334,7 +345,7 @@ const A={
   drug:ds=>drugDetail(ds.id),
   'new-drug':ds=>drugForm(null,ds.from),
   'edit-drug':ds=>drugForm(ds.id),
-  'del-drug':ds=>{const d=drug(ds.id);confirmBox('Delete product?',`<b>${esc(dname(d))}</b> and its ${liveBatches(d.id).length} batches will be removed. Ledger entries are kept for audit.`,'Delete',()=>{S.drugs=S.drugs.filter(x=>x.id!==d.id);S.batches=S.batches.filter(b=>b.drugId!==d.id);ui.disp.cart=ui.disp.cart.filter(l=>l.id!==d.id);save();closeAll();toast('Product deleted');route()})},
+  'del-drug':ds=>{const d=drug(ds.id);if(S.pos.some(p=>poOpen(p)&&p.lines.some(l=>l.drugId===d.id)))return toast('Remove it from open purchase orders first','err');confirmBox('Delete product?',`<b>${esc(dname(d))}</b> and its ${liveBatches(d.id).length} batches will be removed. Ledger entries are kept for audit.`,'Delete',()=>{S.drugs=S.drugs.filter(x=>x.id!==d.id);S.batches=S.batches.filter(b=>b.drugId!==d.id);ui.disp.cart=ui.disp.cart.filter(l=>l.id!==d.id);save();closeAll();toast('Product deleted');route()})},
   'receive-for':ds=>{ui.recvDrug=ds.id;closeAll();if(cur==='receive')route();else location.hash='#/receive'},
   'goto-inv':ds=>{ui.inv.st=ds.k;location.hash='#/inventory';if(cur==='inventory')route()},
   sort:ds=>{const k=ds.sort;ui.inv.dir=ui.inv.sort===k?-ui.inv.dir:1;ui.inv.sort=k;renderInvTable()},
@@ -361,6 +372,28 @@ const A={
 };
 function disposeBatch(b,note){const d=drug(b.drugId);S.tx.push({id:uid(),type:'dispose',date:new Date().toISOString(),drugId:b.drugId,drugName:dname(d),batchId:b.id,lot:b.lot,qty:b.qty,unitCost:b.cost,unitPrice:0,ref:'',note});b.qty=0}
 function afterMutation(drugId){route();if($('#drawer').open&&drugId)drugDetail(drugId)}
+
+function audit(){
+  const sums=new Map();
+  S.tx.forEach(t=>{const q=+t.qty||0;sums.set(t.batchId,(sums.get(t.batchId)||0)+(['in','return','adjust'].includes(t.type)?q:-q))});
+  return S.batches.flatMap(b=>{
+    const d=drug(b.drugId),e=sums.has(b.id)?sums.get(b.id):0;
+    if(!d)return[{b,msg:`Lot ${b.lot} belongs to a deleted product`}];
+    if(!Number.isInteger(b.qty)||b.qty<0)return[{b,msg:`${dname(d)} · lot ${b.lot}: invalid quantity ${b.qty}`}];
+    return e===b.qty?[]:[{b,d,e,msg:`${dname(d)} · lot ${b.lot}: stock ${fnum(b.qty)}, ledger ${fnum(e)}`}];
+  });
+}
+const fixable=x=>x.d&&Number.isInteger(x.b.qty)&&x.b.qty>=0;
+function auditShow(){
+  const r=audit();
+  openModal(`<div class="panel"><div class="card-pad"><h3 style="margin:0 0 6px;font:500 21px var(--serif)">${r.length?`${r.length} issue${r.length>1?'s':''} found`:'Everything reconciles'}</h3><p class="t2" style="margin:0 0 ${r.length?10:0}px">${r.length?'Stock on hand disagrees with the ledger for these batches. Recording adjustments keeps the current stock and writes the difference to the ledger.':`${fnum(S.batches.length)} batches match ${fnum(S.tx.length)} ledger entries.`}</p>${r.slice(0,8).map(x=>`<div class="sub">${esc(x.msg)}</div>`).join('')}${r.length>8?`<div class="sub">and ${r.length-8} more</div>`:''}</div><div class="panel-foot"><button class="btn" data-act="modal-close">Close</button>${r.some(fixable)?'<button class="btn primary" data-act="audit-fix">Record adjustments</button>':''}</div></div>`);
+}
+function auditFix(){
+  const fix=audit().filter(fixable);
+  fix.forEach(({b,d,e})=>S.tx.push({id:uid(),type:'adjust',date:new Date().toISOString(),drugId:d.id,drugName:dname(d),batchId:b.id,lot:b.lot,qty:b.qty-e,unitCost:b.cost,unitPrice:0,ref:'Reconcile',note:'Integrity check'}));
+  save();$('#modal').close();toast(fix.length?`${fix.length} reconciling entr${fix.length>1?'ies':'y'} recorded`:'Nothing to reconcile');route();
+}
+Object.assign(A,{audit:auditShow,'audit-fix':auditFix});
 
 const F={
   drug:(f,v)=>{
@@ -421,16 +454,16 @@ function route(){popClose();
   if(matchMedia('(pointer:fine)').matches)$('#main [autofocus]')?.focus({preventScroll:true});
   document.title=`${$('.nav a.active span')?.textContent||''} · Pillbug`;
 }
-function updateBadge(){const n=S.batches.filter(b=>b.qty>0&&daysTo(b.expiry)<=30).length;const el=$('#exp-badge');el.hidden=!n;el.textContent=n}
+function updateBadge(){const n=S.batches.filter(b=>b.qty>0&&daysTo(b.expiry)<=30).length;const el=$('#exp-badge');el.hidden=!n;el.textContent=n;const pn=S.pos.filter(poOpen).length,pe=$('#po-badge');pe.hidden=!pn;pe.textContent=pn}
 
 document.addEventListener('click',e=>{
   const dlg=e.target.tagName==='DIALOG'?e.target:null;if(dlg){dlg.close();return}
   const el=e.target.closest('[data-act]');if(!el||!el.dataset.act)return;
   const f=A[el.dataset.act];if(!f)return;
   if(el.tagName==='A'&&el.getAttribute('href')?.startsWith('#/')&&el.dataset.act!=='goto-inv')return;
-  e.preventDefault();f(el.dataset,el);
+  e.preventDefault();guard(()=>f(el.dataset,el));
 });
-document.addEventListener('submit',e=>{const f=e.target.closest('form[data-form]');if(!f)return;e.preventDefault();F[f.dataset.form](f,Object.fromEntries(new FormData(f)))});
+document.addEventListener('submit',e=>{const f=e.target.closest('form[data-form]');if(!f)return;e.preventDefault();guard(()=>F[f.dataset.form](f,Object.fromEntries(new FormData(f))))});
 document.addEventListener('input',e=>{
   const t=e.target;
   if(t.id==='inv-q'){ui.inv.q=t.value;renderInvTable()}
@@ -460,7 +493,5 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='Enter'&&t.closest('form[data-form=receive]')&&t.tagName==='INPUT'&&!t.matches('[data-date-text],[data-combo-text]')){const f=t.closest('form');const last=[...f.querySelectorAll('input:not([type=hidden])')].filter(x=>x.offsetParent).pop();if(t!==last&&!e.ctrlKey&&!e.metaKey){e.preventDefault();focusNext(t)}}
 });
 document.addEventListener('keydown',e=>{if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)&&!$('dialog[open]')){const s=$('[data-search]');if(s){e.preventDefault();s.focus()}}});
-window.addEventListener('storage',e=>{if(e.key===KEY){S=load();route();updateBadge()}});
+window.addEventListener('storage',e=>{if(e.key===KEY){S=load();last=JSON.stringify(S);route();updateBadge()}});
 window.addEventListener('hashchange',route);
-
-applyTheme();route();updateBadge();
