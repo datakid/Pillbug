@@ -20,8 +20,8 @@ const byDateDesc=(a,b)=>b.date.localeCompare(a.date);
 let _mf,_mfc;
 const money=n=>{if(_mfc!==S.settings.currency){try{_mf=new Intl.NumberFormat(undefined,{style:'currency',currency:S.settings.currency})}catch(e){_mf=new Intl.NumberFormat(undefined,{style:'currency',currency:'USD'})}_mfc=S.settings.currency}return _mf.format(+n||0)};
 
-function blank(){return{version:1,drugs:[],batches:[],tx:[],pos:[],settings:{currency:'USD',warnDays:90,theme:'system'}}}
-function normalize(d){const b=blank();return{version:1,drugs:Array.isArray(d.drugs)?d.drugs:[],batches:Array.isArray(d.batches)?d.batches:[],tx:Array.isArray(d.tx)?d.tx:[],pos:Array.isArray(d.pos)?d.pos:[],settings:{...b.settings,...(d.settings||{})}}}
+function blank(){return{version:1,drugs:[],batches:[],tx:[],pos:[],settings:{currency:'USD',warnDays:90,coverDays:30,theme:'system'}}}
+function normalize(d){const b=blank();return{version:1,drugs:Array.isArray(d.drugs)?d.drugs:[],batches:Array.isArray(d.batches)?d.batches:[],tx:Array.isArray(d.tx)?d.tx:[],pos:Array.isArray(d.pos)?d.pos:[],settings:{...b.settings,...(d.settings||{}),coverDays:Math.min(365,Math.max(1,Math.round(+(d.settings||{}).coverDays)||30))}}}
 function load(){try{const raw=localStorage.getItem(KEY);if(raw)return normalize(JSON.parse(raw))}catch(e){}const s=seed();localStorage.setItem(KEY,JSON.stringify(s));return s}
 function save(){last=JSON.stringify(S);let ok=true;try{localStorage.setItem(KEY,last)}catch(e){ok=false;toast('Storage is full — export a backup and clear old data','err')}$('#save-warn').hidden=ok;updateBadge()}
 
@@ -58,6 +58,14 @@ const drug=id=>S.drugs.find(x=>x.id===id);
 const liveBatches=id=>S.batches.filter(b=>b.drugId===id&&b.qty>0).sort((a,b)=>a.expiry.localeCompare(b.expiry));
 const onHand=id=>liveBatches(id).reduce((s,b)=>s+b.qty,0);
 const sellable=id=>liveBatches(id).filter(b=>daysTo(b.expiry)>=0).reduce((s,b)=>s+b.qty,0);
+function demand(id,days=30){const since=addDays(-days).toISOString();return S.tx.filter(t=>t.type==='out'&&!t.reversed&&t.drugId===id&&t.date>=since).reduce((s,t)=>s+t.qty,0)/days}
+function unsold(b){
+  const n=daysTo(b.expiry);
+  if(n<0)return b.qty;
+  if(n>S.settings.warnDays)return null;
+  const ahead=S.batches.filter(x=>x.drugId===b.drugId&&x.qty>0&&x.expiry<b.expiry&&daysTo(x.expiry)>=0).reduce((s,x)=>s+x.qty,0);
+  return Math.min(b.qty,Math.max(0,Math.ceil(b.qty-Math.max(0,demand(b.drugId)*n-ahead))));
+}
 function stockState(d){const q=sellable(d.id);if(q<=0)return['out','Out of stock','p-bad'];if(q<=d.reorder)return['low','Low stock','p-warn'];return['ok','In stock','p-ok']}
 function expState(date){const n=daysTo(date);if(n<0)return['expired',`Expired ${-n}d ago`,'p-bad'];if(n<=30)return['critical',`${n}d left`,'p-warn'];if(n<=S.settings.warnDays)return['soon',`${n}d left`,'p-info'];return['ok',fdate(date),'p-mute']}
 const dname=d=>d?`${d.name}${d.strength?' '+d.strength:''}`:'';
@@ -137,7 +145,7 @@ function txItem(t){const [l,c]=TX[t.type]||['',''];const sign=['in','return'].in
 
 function inventory(){
   const cats=[...new Set(S.drugs.map(d=>d.category).filter(Boolean))].sort();
-  return head('Inventory',`${S.drugs.length} products · ${fnum(S.batches.reduce((s,b)=>s+Math.max(0,b.qty),0))} units on hand`,`<button class="btn" data-act="imp-pick">${ic('upload')}<span class="hide-sm">Import</span></button><button class="btn" data-act="export-xlsx">${ic('download')}<span class="hide-sm">Export</span></button><button class="btn primary" data-act="new-drug">${ic('plus')}New product</button>`)+`
+  return head('Inventory',`${S.drugs.length} products · ${fnum(S.batches.reduce((s,b)=>s+Math.max(0,b.qty),0))} units on hand`,`<a class="btn" href="#/stocktake">${ic('check')}<span class="hide-sm">Stocktake</span></a><button class="btn" data-act="imp-pick">${ic('upload')}<span class="hide-sm">Import</span></button><button class="btn" data-act="export-xlsx">${ic('download')}<span class="hide-sm">Export</span></button><button class="btn primary" data-act="new-drug">${ic('plus')}New product</button>`)+`
   <div class="row" style="margin-bottom:14px">
     <label class="search">${ic('search')}<input class="input" id="inv-q" type="search" placeholder="Search name, generic, SKU, lot…" value="${esc(ui.inv.q)}" data-search></label>
     ${selectBox('',[['','All categories'],...cats],ui.inv.cat,{id:'inv-cat',cls:'sel-auto',label:'Category'})}
@@ -287,7 +295,7 @@ function expiry(){
   const expiredCount=live.filter(tabs[0][2]).length;
   return head('Expiry',`${rows.length} batches · ${money(val)} at cost`,cur[0]==='expired'&&rows.length?`<button class="btn danger" data-act="dispose-all">${ic('trash')}Dispose all expired</button>`:'')+`
   <div class="row" style="margin-bottom:14px"><div class="tabs">${tabs.map(t=>`<button data-act="exp-tab" data-k="${t[0]}" class="${t[0]===cur[0]?'on':''}">${t[1]}${t[0]==='expired'&&expiredCount?` <b style="color:var(--bad)">${expiredCount}</b>`:''}</button>`).join('')}</div></div>
-  <div class="card table-wrap"><table><thead><tr><th>Product</th><th>Lot</th><th>Expiry</th><th class="num">Qty</th><th class="num hide-sm">Value</th><th class="hide-sm">Supplier</th><th></th></tr></thead><tbody>${rows.length?rows.map(b=>{const d=drug(b.drugId),e=expState(b.expiry);return`<tr><td><a class="name" href="javascript:void 0" data-act="drug" data-id="${b.drugId}">${esc(dname(d)||'Unknown')}</a></td><td class="mono">${esc(b.lot)}</td><td><span class="pill ${e[2]}">${e[1]}</span><div class="sub">${fdate(b.expiry)}</div></td><td class="num mono">${fnum(b.qty)}</td><td class="num hide-sm">${money(b.qty*b.cost)}</td><td class="t2 hide-sm">${esc(b.supplier||'—')}</td><td class="num"><button class="btn sm danger" data-act="dispose" data-id="${b.id}">Dispose</button></td></tr>`}).join(''):`<tr><td colspan="7"><div class="empty"><strong>Nothing here</strong>No batches in this window.</div></td></tr>`}</tbody></table></div>`;
+  <div class="card table-wrap"><table><thead><tr><th>Product</th><th>Lot</th><th>Expiry</th><th class="num">Qty</th><th class="num hide-sm">Value</th><th class="num hide-sm">Likely unsold</th><th class="hide-sm">Supplier</th><th></th></tr></thead><tbody>${rows.length?rows.map(b=>{const d=drug(b.drugId),e=expState(b.expiry);return`<tr><td><a class="name" href="javascript:void 0" data-act="drug" data-id="${b.drugId}">${esc(dname(d)||'Unknown')}</a></td><td class="mono">${esc(b.lot)}</td><td><span class="pill ${e[2]}">${e[1]}</span><div class="sub">${fdate(b.expiry)}</div></td><td class="num mono">${fnum(b.qty)}</td><td class="num hide-sm">${money(b.qty*b.cost)}</td><td class="num hide-sm">${(u=>u===null?'<span class="muted">—</span>':u?`<span class="pill p-warn">${fnum(u)}</span>`:'<span class="muted">0</span>')(unsold(b))}</td><td class="t2 hide-sm">${esc(b.supplier||'—')}</td><td class="num"><button class="btn sm danger" data-act="dispose" data-id="${b.id}">Dispose</button></td></tr>`}).join(''):`<tr><td colspan="8"><div class="empty"><strong>Nothing here</strong>No batches in this window.</div></td></tr>`}</tbody></table></div>`;
 }
 
 function settings(){
@@ -299,6 +307,7 @@ function settings(){
         <div class="field full"><label>Appearance</label><div class="tabs">${['light','dark','system'].map(t=>`<button data-act="theme" data-t="${t}" class="${S.settings.theme===t?'on':''}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div></div>
         <div class="field"><label>Currency</label>${selectBox('',CURR,S.settings.currency,{id:'set-cur',label:'Currency'})}</div>
         <div class="field"><label>Expiry warning (days)</label><input class="input" id="set-warn" type="number" min="7" max="365" value="${S.settings.warnDays}"></div>
+        <div class="field"><label>Order cover (days)</label><input class="input" id="set-cover" type="number" min="1" max="365" value="${S.settings.coverDays}"><span class="hint">Reorder suggestions aim to cover this many days of recent sales.</span></div>
       </div>
     </section>
     <section class="card card-pad"><h2>Backup &amp; restore <span class="sub">${kb} KB stored</span></h2>
@@ -308,7 +317,7 @@ function settings(){
     </section>
     <section class="card card-pad"><h2>Pharmacy details <span class="sub">Printed on receipts &amp; orders</span></h2><div class="form-grid">${[['sn','Pharmacy name','name'],['sp','Phone','phone'],['sa','Address','address'],['sf','Receipt footer','footer']].map(([i,l,k])=>`<div class="field ${k==='address'||k==='footer'?'full':''}"><label>${l}</label><input class="input" id="set-${i}" data-store="${k}" value="${esc((S.settings.store||{})[k]||'')}"></div>`).join('')}</div></section>
     <section class="card card-pad"><h2>Demo data</h2><p class="t2" style="margin-top:0">Reload the sample pharmacy, or start from an empty shelf.</p><div class="row"><button class="btn" data-act="load-demo">Load sample data</button><button class="btn danger" data-act="wipe">${ic('trash')}Erase everything</button></div></section>
-    <section class="card card-pad"><h2>About</h2><p class="t2" style="margin:0">Pillbug 2.5 is a local-first demo. Data is kept in <span class="mono">localStorage</span> on this device only — export a backup regularly. Shortcuts: <span class="mono">/</span> search, <span class="mono">Esc</span> close panels.</p></section>
+    <section class="card card-pad"><h2>About</h2><p class="t2" style="margin:0">Pillbug 3.0 is a local-first demo. Data is kept in <span class="mono">localStorage</span> on this device only — export a backup regularly. Shortcuts: <span class="mono">/</span> search, <span class="mono">Esc</span> close panels.</p></section>
   </div>`;
 }
 
@@ -330,7 +339,7 @@ function handleImport(file){
 }
 function doImport(mode){
   const d=importData;if(!d)return;
-  if(mode==='replace')S=d;
+  if(mode==='replace'){S=d;dropDrafts()}
   else{for(const k of['drugs','batches','tx','pos']){const m=new Map(S[k].map(x=>[x.id,x]));d[k].forEach(x=>m.set(x.id,x));S[k]=[...m.values()]}}
   S.batches.forEach(b=>{b.qty=Math.max(0,Math.round(+b.qty||0));b.cost=+b.cost||0});
   S.drugs.forEach(x=>{x.price=+x.price||0;x.reorder=+x.reorder||0;x.form=x.form||'Other'});
@@ -353,7 +362,7 @@ const A={
   'led-type':ds=>{ui.led.type=ds.k;route()},
   'led-range':ds=>{ui.led.from=ds.n===''?'':ymd(addDays(-ds.n));ui.led.to='';route()},
   'recv-clear':()=>{ui.recvDrug='';route()},
-  'reorder-csv':()=>{const rows=S.drugs.map(d=>({d,q:sellable(d.id)})).filter(x=>x.q<=x.d.reorder).sort((a,b)=>a.d.name.localeCompare(b.d.name));const sup=id=>S.batches.filter(b=>b.drugId===id).slice(-1)[0];download(`pillbug-reorder-${today()}.csv`,'\ufeff'+csv([['Product','Strength','Form','SKU','Sellable','Reorder level','Suggested order','Last supplier','Last unit cost','Est. cost'],...rows.map(({d,q})=>{const b=sup(d.id),n=Math.max(d.reorder*2-q,d.reorder||1);return[d.name,d.strength,d.form,d.sku,q,d.reorder,n,b?.supplier||'',b?.cost??'',b?+(n*b.cost).toFixed(2):'']})]),'text/csv');toast('Purchase list downloaded')},
+  'reorder-csv':()=>{const rows=S.drugs.map(d=>({d,q:sellable(d.id)})).filter(x=>x.q<=x.d.reorder).sort((a,b)=>a.d.name.localeCompare(b.d.name));const sup=id=>S.batches.filter(b=>b.drugId===id).slice(-1)[0];download(`pillbug-reorder-${today()}.csv`,'\ufeff'+csv([['Product','Strength','Form','SKU','Sellable','Reorder level','Suggested order','Last supplier','Last unit cost','Est. cost'],...rows.map(({d,q})=>{const b=sup(d.id),n=suggestQty(d);return[d.name,d.strength,d.form,d.sku,q,d.reorder,n,b?.supplier||'',b?.cost??'',b?+(n*b.cost).toFixed(2):'']})]),'text/csv');toast('Purchase list downloaded')},
   'exp-tab':ds=>{ui.exp.tab=ds.k;route()},
   adjust:ds=>{const b=S.batches.find(x=>x.id===ds.id),d=drug(b.drugId);openModal(`<form class="panel" data-form="adjust" data-id="${b.id}" novalidate><div class="card-pad"><h3 style="margin:0 0 4px;font:500 21px var(--serif)">Adjust quantity</h3><p class="sub" style="margin:0 0 16px">${esc(dname(d))} · Lot <span class="mono">${esc(b.lot)}</span> · currently ${fnum(b.qty)}</p><div class="form-grid">${fld('Counted quantity','qty',b.qty,{type:'number',attrs:'required min="0" step="1"'})}${fld('Reason','reason','Stock count',{options:['Stock count','Damaged','Lost / stolen','Data correction','Other']})}${fld('Note','note','',{full:1})}</div><p class="err-text" id="adj-err"></p></div><div class="panel-foot"><button type="button" class="btn" data-act="modal-close">Cancel</button><button class="btn primary">Save</button></div></form>`)},
   dispose:ds=>{const b=S.batches.find(x=>x.id===ds.id),d=drug(b.drugId);confirmBox('Dispose batch?',`Write off <b>${fnum(b.qty)}</b> × ${esc(dname(d))}, lot <span class="mono">${esc(b.lot)}</span> (${money(b.qty*b.cost)} at cost).`,'Dispose',()=>{disposeBatch(b,'Disposed');save();toast('Batch disposed');afterMutation(d.id)})},
@@ -367,8 +376,8 @@ const A={
   'csv-inv':()=>{const rows=[['Name','Generic','Strength','Form','Category','SKU','Unit','Price','Reorder','Lot','Expiry','Qty','Unit cost','Supplier','Received']];S.drugs.slice().sort(byName).forEach(d=>{const bs=liveBatches(d.id);if(!bs.length)rows.push([d.name,d.generic,d.strength,d.form,d.category,d.sku,d.unit,d.price,d.reorder,'','',0,'','','']);bs.forEach(b=>rows.push([d.name,d.generic,d.strength,d.form,d.category,d.sku,d.unit,d.price,d.reorder,b.lot,b.expiry,b.qty,b.cost,b.supplier,b.received]))});download(`pillbug-inventory-${today()}.csv`,'\ufeff'+csv(rows),'text/csv')},
   'csv-led':()=>{const src=cur==='history'?ledRows():S.tx.slice().sort(byDateDesc);download(`pillbug-ledger-${today()}.csv`,'\ufeff'+csv([['Date','Type','Product','Lot','Qty','Unit price','Unit cost','Reference','Note','Returned'],...src.map(t=>[t.date,t.type,t.drugName,t.lot,t.qty,t.unitPrice,t.unitCost,t.ref,t.note,t.reversed?'yes':''])]),'text/csv')},
   import:ds=>doImport(ds.mode),
-  'load-demo':()=>confirmBox('Load sample data?','Current products, batches and ledger will be replaced by the sample pharmacy. Export a backup first if you need it.','Load sample',()=>{S=seed(S.settings);save();toast('Sample data loaded');route()}),
-  wipe:()=>confirmBox('Erase everything?','All products, batches and transactions will be permanently deleted from this browser.','Erase',()=>{S={...blank(),settings:S.settings};ui.disp.cart=[];save();toast('All data erased');route()})
+  'load-demo':()=>confirmBox('Load sample data?','Current products, batches and ledger will be replaced by the sample pharmacy. Export a backup first if you need it.','Load sample',()=>{S=seed(S.settings);dropDrafts();save();toast('Sample data loaded');route()}),
+  wipe:()=>confirmBox('Erase everything?','All products, batches and transactions will be permanently deleted from this browser.','Erase',()=>{S={...blank(),settings:S.settings};ui.disp.cart=[];dropDrafts();save();toast('All data erased');route()})
 };
 function disposeBatch(b,note){const d=drug(b.drugId);S.tx.push({id:uid(),type:'dispose',date:new Date().toISOString(),drugId:b.drugId,drugName:dname(d),batchId:b.id,lot:b.lot,qty:b.qty,unitCost:b.cost,unitPrice:0,ref:'',note});b.qty=0}
 function afterMutation(drugId){route();if($('#drawer').open&&drugId)drugDetail(drugId)}
@@ -481,6 +490,7 @@ document.addEventListener('change',e=>{
   else if(t.id==='recv-drug'){ui.recvDrug=t.value;const hn=t.closest('.field').querySelector(':scope > .hint');if(hn)hn.textContent=t.value?`${fnum(sellable(t.value))} sellable now · ${liveBatches(t.value).length} batches`:'';const lb=S.batches.filter(b=>b.drugId===t.value).slice(-1)[0];const c=$('#recv-cost'),s=$('#recv-sup');if(lb){if(!c.value)c.value=lb.cost;if(!s.value)s.value=lb.supplier||''}$('#recv-price').placeholder=drug(t.value)?String(drug(t.value).price):'Keep current'}
   else if(t.id==='set-cur'){S.settings.currency=t.value;save();toast('Currency updated')}
   else if(t.id==='set-warn'){const n=parseInt(t.value,10);if(n>=7&&n<=365){S.settings.warnDays=n;save();toast('Warning window updated')}else{t.value=S.settings.warnDays;toast('Use 7–365 days','err')}}
+  else if(t.id==='set-cover'){const n=parseInt(t.value,10);if(n>=1&&n<=365){S.settings.coverDays=n;save();toast('Order cover updated')}else{t.value=S.settings.coverDays;toast('Use 1–365 days','err')}}
   else if(t.id==='import-file'){importAny(t.files[0]);t.value=''}
 });
 document.addEventListener('dragover',e=>{const z=e.target.closest?.('.dropzone');if(z){e.preventDefault();z.classList.add('over')}});

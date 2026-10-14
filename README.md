@@ -39,6 +39,13 @@ Everything is stored in `localStorage` under the key `pillbug.v1` as `{version, 
 - batch: id, drugId, lot, expiry, qty, cost, supplier, received
 - tx: id, type (in/out/return/adjust/dispose), date, drugId, drugName, batchId, lot, qty, unitCost, unitPrice, ref, note, reversed
 
+## Stocktake (v3)
+- Stocktake lists every live batch with a counted-quantity box. Blind count hides expected quantities. Leave a box empty to skip a batch; Enter moves to the next box. Review shows the differences and their net value at cost; applying writes one adjustment per differing batch to the ledger (reference Stocktake) so the integrity check keeps reconciling. Invalid counts block applying, and counts outside the chosen category are ignored. Typed counts are kept as a draft in the browser, separate from your data, so a reload does not lose them; applying or clearing removes the draft
+
+## Demand-based reordering (v3)
+- Suggested order quantity is recent daily sales (last 30 days, returns excluded) times the order cover in Settings, minus sellable stock, never below the reorder level. Products with no recent sales fall back to twice the reorder level minus stock
+- The Expiry view shows how many units of each batch are likely to stay unsold before expiry, assuming earlier-expiring batches sell first. It is shown for batches inside the expiry warning window
+
 ## Reliability (v2.5)
 - One commit boundary: every click action and form submit runs inside a guard. If it throws before saving, the in-memory state is restored to the last saved snapshot and nothing changes
 - A red banner appears if the browser refuses to save (storage full) and clears on the next successful save

@@ -236,3 +236,4 @@ input[type=number].input::-webkit-inner-spin-button,input[type=number].input::-w
 .cal-wd{text-transform:uppercase;letter-spacing:.04em}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 .save-warn{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:110;padding:8px 14px;border-radius:11px;background:var(--bad-soft);color:var(--bad);border:1px solid var(--bad);font-weight:500;box-shadow:var(--shadow-lg);max-width:calc(100vw - 24px)}
+@media (max-width:760px){.nav a.nav-wide{display:none}}

@@ -42,7 +42,7 @@ const po=id=>S.pos.find(p=>p.id===id);
 const poTotal=p=>p.lines.reduce((s,l)=>s+l.qty*l.cost,0);
 const poOpen=p=>['draft','sent','partial'].includes(p.status);
 const lastBatch=id=>S.batches.filter(b=>b.drugId===id).sort((a,b)=>(a.received||'').localeCompare(b.received||'')).pop();
-const suggestQty=d=>Math.max(d.reorder*2-sellable(d.id),d.reorder||1);
+const suggestQty=d=>{const r=demand(d.id),need=r>0?Math.ceil(r*S.settings.coverDays)-sellable(d.id):d.reorder*2-sellable(d.id);return Math.max(need,d.reorder||1)};
 function poNumber(){const y=new Date().getFullYear(),n=S.pos.filter(p=>p.number.startsWith(`PO-${y}-`)).map(p=>+p.number.split('-')[2]||0);return`PO-${y}-${String(Math.max(0,...n)+1).padStart(4,'0')}`}
 function newPO(supplier,lines){const p={id:uid(),number:poNumber(),supplier:supplier||'',status:'draft',created:new Date().toISOString(),sent:'',expected:'',note:'',lines};S.pos.push(p);return p}
 function generatePOs(){
